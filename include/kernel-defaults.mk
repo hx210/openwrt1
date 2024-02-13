@@ -96,7 +96,16 @@ define Kernel/SetNoInitramfs
 	grep -v INITRAMFS $(LINUX_DIR)/.config.old > $(LINUX_DIR)/.config.set
 	echo 'CONFIG_INITRAMFS_SOURCE=""' >> $(LINUX_DIR)/.config.set
 	echo '# CONFIG_INITRAMFS_FORCE is not set' >> $(LINUX_DIR)/.config.set
-	echo "# CONFIG_INITRAMFS_PRESERVE_MTIME is not set" >> $(LINUX_DIR)/.config.set
+endef
+
+define Kernel/Configure/Squashfs
+	mv $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.old
+	grep -Ev 'CONFIG_SQUASHFS_(ZLIB|LZ4|LZO|XZ|ZSTD)' $(LINUX_DIR)/.config.old > $(LINUX_DIR)/.config.set || /bin/true
+	echo "$(if $(CONFIG_KERNEL_SQUASHFS_GZIP),CONFIG_SQUASHFS_ZLIB=y,# CONFIG_SQUASHFS_ZLIB is not set)" >> $(LINUX_DIR)/.config.set
+	echo "$(if $(CONFIG_KERNEL_SQUASHFS_LZ4),CONFIG_SQUASHFS_LZ4=y,# CONFIG_SQUASHFS_LZ4 is not set)" >> $(LINUX_DIR)/.config.set
+	echo "$(if $(CONFIG_KERNEL_SQUASHFS_LZO),CONFIG_SQUASHFS_LZO=y,# CONFIG_SQUASHFS_LZO is not set)" >> $(LINUX_DIR)/.config.set
+	echo "$(if $(CONFIG_KERNEL_SQUASHFS_XZ),CONFIG_SQUASHFS_XZ=y,# CONFIG_SQUASHFS_XZ is not set)" >> $(LINUX_DIR)/.config.set
+	echo "$(if $(CONFIG_KERNEL_SQUASHFS_ZSTD),CONFIG_SQUASHFS_ZSTD=y,# CONFIG_SQUASHFS_ZSTD is not set)" >> $(LINUX_DIR)/.config.set
 endef
 
 define Kernel/Configure/Default
@@ -110,6 +119,7 @@ define Kernel/Configure/Default
 	$(SCRIPT_DIR)/package-metadata.pl kconfig $(TMP_DIR)/.packageinfo $(TOPDIR)/.config $(KERNEL_PATCHVER) > $(LINUX_DIR)/.config.override
 	$(SCRIPT_DIR)/kconfig.pl 'm+' '+' $(LINUX_DIR)/.config.target /dev/null $(LINUX_DIR)/.config.override > $(LINUX_DIR)/.config.set
 	$(call Kernel/SetNoInitramfs)
+	$(call Kernel/Configure/Squashfs)
 	rm -rf $(KERNEL_BUILD_DIR)/modules
 	cmp -s $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.prev || { \
 		cp $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config; \
